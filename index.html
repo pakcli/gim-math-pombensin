@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Petualangan Pom Bensin - Matematika Seru untuk Anak-Anak!</title>
+  <!-- Google Fonts: Fredoka & Outfit for a child-friendly premium aesthetic -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="game-container">
+    <!-- Top HUD Bar -->
+    <header class="hud-bar">
+      <!-- Hamburger Menu for Mobile (Top Left) -->
+      <button id="menu-toggle-btn" class="menu-toggle-btn" aria-label="Toggle Stats Menu">☰</button>
+      
+      <div class="hud-logo">
+        <span class="logo-emoji">🎒</span>
+        <div class="logo-text">
+          <h1>Pom Bensin</h1>
+          <p>Kalkulator Pintar</p>
+        </div>
+      </div>
+      <div class="hud-stats" id="hud-stats">
+        <div class="stat-badge star-badge">
+          <span class="badge-icon">⭐</span>
+          <div class="badge-info">
+            <span class="badge-label">Bintang</span>
+            <span id="score-value" class="badge-value">0</span>
+          </div>
+        </div>
+        <div class="stat-badge streak-badge">
+          <span class="badge-icon">🔥</span>
+          <div class="badge-info">
+            <span class="badge-label">Streak</span>
+            <span id="streak-value" class="badge-value">0</span>
+          </div>
+        </div>
+        <button id="lang-btn" class="lang-toggle-btn">🇮🇩 ID / 🇬🇧 EN</button>
+      </div>
+    </header>
+
+    <!-- Main Game Board -->
+    <main class="game-board">
+      
+      <!-- Left Panel: The Comic Scenario / Vehicle Vis -->
+      <section class="scenario-panel">
+        <div class="panel-header">
+          <span class="status-indicator">🔴 MULAI DARI NOL ya!</span>
+          <span id="vehicle-name" class="vehicle-tag">Angkot Bapak Budi</span>
+        </div>
+
+        <div class="comic-frame">
+          <!-- Animated Vehicle Representation (Dynamic SVG container) -->
+          <div class="visual-viewport">
+            <div id="vehicle-svg-container" class="vehicle-svg-container">
+              <!-- Inline SVG injected by app.js -->
+            </div>
+            
+            <!-- Character Avatar -->
+            <div class="avatar-container">
+              <div id="character-emoji" class="avatar-emoji">👨</div>
+              <div class="dialogue-cloud">
+                <p id="dialogue-text">Tolong isi full tank Pertalite ya! Ini uang Rp 200.000.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fuel Info Dashboard -->
+          <div class="info-dashboard">
+            <div class="info-card fuel-price-card">
+              <span class="info-lbl">Harga Bahan Bakar</span>
+              <span id="fuel-type-display" class="info-val fuel-label-pertalite">Pertalite</span>
+              <span id="fuel-price-display" class="info-sub-val">Rp 10.000 / Liter</span>
+            </div>
+            <div class="info-card tank-status-card">
+              <span class="info-lbl">Kondisi Tangki</span>
+              <div class="tank-progress-wrapper">
+                <div class="tank-progress-bar">
+                  <div id="tank-fill-bar" class="tank-fill-indicator" style="width: 30%;"></div>
+                </div>
+                <div class="tank-labels">
+                  <span id="tank-current-display">10L</span>
+                  <span id="tank-max-display">Kapasitas: 40L</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Panel: The Quest & Multiple-Choice Quiz (SPBU Dispenser) -->
+      <section class="quiz-panel" id="quiz-panel">
+        <!-- Visual Fuel Hose Cable Loop & Hanging Nozzle Gun -->
+        <div class="dispenser-hose">
+          <svg viewBox="0 0 60 240" width="60" height="240" style="overflow: visible;">
+            <!-- Outer hanging loop representing rubber gas hose -->
+            <path d="M15,20 C55,90 -10,165 15,200" fill="none" stroke="#1e293b" stroke-width="8" stroke-linecap="round"/>
+            <path d="M15,20 C55,90 -10,165 15,200" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+            
+            <!-- Dispenser bracket hook -->
+            <rect x="8" y="10" width="14" height="15" fill="#475569" rx="3"/>
+            
+            <!-- The Nozzle Gun (Pistol Pengisi) hanging at the hook -->
+            <g class="hanging-nozzle-gun">
+              <!-- Gun Body (Colors match selected Pertalite/Pertamax/Turbo!) -->
+              <path d="M10,15 L32,15 L32,32 L22,42 L10,32 Z" fill="var(--dispenser-brand, #ef4444)" style="transition: fill 0.5s ease; stroke: #334155; stroke-width: 1;"/>
+              <!-- Gun Handle -->
+              <rect x="25" y="24" width="8" height="26" rx="3" fill="#1e293b" transform="rotate(30 25 24)"/>
+              <!-- Trigger Guard & Lever -->
+              <path d="M15,28 Q18,36 28,34" fill="none" stroke="#1e293b" stroke-width="2.5"/>
+              <rect x="19" y="28" width="3" height="8" rx="1" fill="#ef4444"/>
+              <!-- Stainless spout tube -->
+              <path d="M10,16 L-10,30 L-13,26 L5,12 Z" fill="#94a3b8" stroke="#475569" stroke-width="0.5"/>
+            </g>
+          </svg>
+        </div>
+
+        <!-- Step Progress Indicator -->
+        <div class="step-indicator">
+          <div id="step-1" class="step-dot active"><span>1</span><label>Kebutuhan</label></div>
+          <div id="step-2" class="step-dot"><span>2</span><label>Total Biaya</label></div>
+          <div id="step-3" class="step-dot"><span>3</span><label>Cukup?</label></div>
+          <div id="step-4" class="step-dot"><span>4</span><label>Uang Sekarang</label></div>
+        </div>
+
+        <div class="question-container">
+          <h2 id="question-text">Berapa liter bensin yang dibutuhkan untuk memenuhi tangki mobil Bapak?</h2>
+        </div>
+
+        <!-- Multiple Choice Buttons Grid -->
+        <div class="choices-grid">
+          <button class="choice-btn" id="btn-a">
+            <span class="choice-letter">A</span>
+            <span id="text-a" class="choice-content">10 Liter</span>
+          </button>
+          <button class="choice-btn" id="btn-b">
+            <span class="choice-letter">B</span>
+            <span id="text-b" class="choice-content">20 Liter</span>
+          </button>
+          <button class="choice-btn" id="btn-c">
+            <span class="choice-letter">C</span>
+            <span id="text-c" class="choice-content">30 Liter</span>
+          </button>
+          <button class="choice-btn" id="btn-d">
+            <span class="choice-letter">D</span>
+            <span id="text-d" class="choice-content">40 Liter</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Success / Error Explanatory Overlay (Moved outside to game-board to prevent clipping) -->
+      <div id="feedback-overlay" class="feedback-overlay hidden">
+        <div class="feedback-card">
+          <div id="feedback-icon" class="feedback-icon">🎉</div>
+          <h3 id="feedback-title">Jawaban Benar!</h3>
+          <p id="feedback-message">Wah pintar sekali! Sisa tangki kosong adalah Kapasitas 40L - Isi 10L = 30L.</p>
+          
+          <div class="math-breakdown-box">
+            <h4>Rumus Pintar:</h4>
+            <p id="math-formula">Bensin yang dibutuhkan = Kapasitas Tangki - Bensin Sekarang</p>
+          </div>
+
+          <button id="next-btn" class="next-action-btn">Pertanyaan Berikutnya ➡️</button>
+        </div>
+      </div>
+
+      <!-- Pump Animation Overlay (Moved outside to game-board to prevent clipping) -->
+      <div id="pump-animation-overlay" class="pump-overlay hidden">
+        <div class="pump-visual-card">
+          <div class="nozzle-wrapper">
+            <!-- Animated Fuel Drop / Nozzle SVG -->
+            <svg class="nozzle-svg" viewBox="0 0 100 100" width="100" height="100">
+              <path d="M20,70 L40,50 L50,55 L35,80 Z" fill="#4B5563"/>
+              <path d="M40,50 L80,20 C85,15 90,20 85,25 L50,55 Z" fill="#9CA3AF"/>
+              <rect x="75" y="15" width="8" height="12" rx="4" fill="#EF4444" transform="rotate(-35 79 21)"/>
+              <circle cx="35" cy="52" r="4" fill="#FBBF24" id="fuel-drip-1" class="drip-particle"/>
+              <circle cx="35" cy="52" r="3" fill="#FBBF24" id="fuel-drip-2" class="drip-particle delay-1"/>
+              <circle cx="35" cy="52" r="5" fill="#FBBF24" id="fuel-drip-3" class="drip-particle delay-2"/>
+            </svg>
+          </div>
+          <h3>Mengisi Bensin... Wuuusssh! ⚡</h3>
+          <div class="pump-progress-bar">
+            <div id="pump-indicator" class="pump-indicator" style="width: 0%;"></div>
+          </div>
+          <p id="pump-status-sub">Sssst! Mengisi tangki bensin Bapak sampai penuh!</p>
+        </div>
+      </div>
+    </main>
+    
+    <!-- Footer Credits -->
+    <footer class="game-footer">
+      <p>Petualangan Pom Bensin &copy; 2026. Belajar Matematika Real-World Cepat &amp; Seru!</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

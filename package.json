@@ -1,0 +1,12 @@
+{
+  "name": "petualangan-pom-bensin",
+  "version": "1.0.0",
+  "description": "Educational gas station math gamification game for kids",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx serve .",
+    "start": "npx serve ."
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
