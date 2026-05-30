@@ -359,7 +359,8 @@ let gameState = {
   streak: 0,
   lang: "id",
   currentStep: 1, // Steps: 1, 2, 3, 4
-  scenario: null
+  scenario: null,
+  partialFillPercent: null // stores partial fill after step 3 when cash insufficient
 };
 
 // 5. Initialize Game
@@ -765,8 +766,14 @@ function handleAnswer(selectedValue) {
     explanation = t.step3Desc
       .replace("{cash}", `${t.rupiah} ${formatRupiah(s.bapakUang)}`)
       .replace("{cost}", `${t.rupiah} ${formatRupiah(s.totalCost)}`);
-    explanation += `<br><br>Sebab total biaya adalah <b>${t.rupiah} ${formatRupiah(s.totalCost)}</b> dan uang Bapak adalah <b>${t.rupiah} ${formatRupiah(s.bapakUang)}</b>.`;
-
+    explanation += `<br><br>Sebab total biaya adalah <b>${t.rupiah} ${formatRupiah(s.totalCost)}</b> dan uang Bapak adalah <b>${t.rupiah} ${formatRupiah(s.bapakUang)}</b>`;
+    // If cash is not enough, calculate partial fill percentage
+    if (!s.isEnough) {
+      const partialLiters = s.currentFuel + (s.needLiters * (s.bapakUang / s.totalCost));
+      const percent = Math.min((partialLiters / s.vehicle.maxTank) * 100, 99);
+      gameState.partialFillPercent = percent;
+      document.getElementById("tank-fill-bar").style.width = `${percent}%`;
+    }
   } else if (gameState.currentStep === 4) {
     if (s.isEnough) {
       isCorrect = (Number(selectedValue) === Number(s.change));
@@ -786,6 +793,18 @@ function handleAnswer(selectedValue) {
     document.getElementById("feedback-title").innerText = title;
     document.getElementById("feedback-title").className = "success-header";
     document.getElementById("feedback-message").innerHTML = `<b>${t.feedbackCorrect}</b><br><br>${explanation}`;
+    
+    // After step 4, animate bar to full width
+    if (gameState.currentStep === 4) {
+      // Use a short timeout to allow the overlay to appear first
+      setTimeout(() => {
+        const bar = document.getElementById("tank-fill-bar");
+        if (bar) {
+          bar.style.transition = "width 0.8s ease-in-out";
+          bar.style.width = "100%";
+        }
+      }, 300);
+    }
   } else {
     playErrorSound();
     gameState.streak = 0; // Reset streak
