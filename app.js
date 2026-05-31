@@ -487,6 +487,110 @@ function updateLanguageUI() {
     "Petrol Station Adventure &copy; 2026. Fast &amp; Fun Real-World Math Learning!";
   
   updateFullscreenBtn();
+  updateTankDisplayTranslation();
+}
+
+function updateTankDisplayTranslation() {
+  if (!gameState.scenario) return;
+  const s = gameState.scenario;
+  const t = translations[gameState.lang];
+  const display = document.getElementById("tank-current-display");
+  const maxDisplay = document.getElementById("tank-max-display");
+  
+  if (display) {
+    const matches = display.innerText.match(/^[\d.]+/);
+    if (matches) {
+      const liters = parseFloat(matches[0]);
+      display.innerText = `${liters} ${t.liter}`;
+    }
+  }
+  
+  if (maxDisplay) {
+    const labelCap = gameState.lang === "id" ? "Kapasitas" : "Capacity";
+    maxDisplay.innerText = `${labelCap}: ${s.vehicle.maxTank}L`;
+  }
+}
+
+function validateScenario(s) {
+  if (!s) throw new Error("Scenario is null or undefined");
+  
+  // 1. Math Verification
+  const expectedNeedLiters = s.vehicle.maxTank - s.currentFuel;
+  if (s.needLiters !== expectedNeedLiters || s.needLiters <= 0) {
+    throw new Error(`Invalid needLiters: expected ${expectedNeedLiters}, got ${s.needLiters}`);
+  }
+  
+  const expectedCost = s.needLiters * s.fuel.price;
+  if (s.totalCost !== expectedCost || s.totalCost <= 0) {
+    throw new Error(`Invalid totalCost: expected ${expectedCost}, got ${s.totalCost}`);
+  }
+  
+  const expectedIsEnough = s.bapakUang >= s.totalCost;
+  if (s.isEnough !== expectedIsEnough) {
+    throw new Error(`Invalid isEnough: expected ${expectedIsEnough}, got ${s.isEnough}`);
+  }
+  
+  if (s.isEnough) {
+    const expectedChange = s.bapakUang - s.totalCost;
+    if (s.change !== expectedChange || s.change < 0) {
+      throw new Error(`Invalid change: expected ${expectedChange}, got ${s.change}`);
+    }
+    if (s.shortage !== 0) {
+      throw new Error(`Invalid shortage: expected 0, got ${s.shortage}`);
+    }
+  } else {
+    const expectedShortage = s.totalCost - s.bapakUang;
+    if (s.shortage !== expectedShortage || s.shortage <= 0) {
+      throw new Error(`Invalid shortage: expected ${expectedShortage}, got ${s.shortage}`);
+    }
+    if (s.change !== 0) {
+      throw new Error(`Invalid change: expected 0, got ${s.change}`);
+    }
+  }
+
+  // 2. Choice Possibility Check
+  // Dry run step 1 choice generation
+  const step1Choices = generateUniqueChoices(s.needLiters, [
+    s.vehicle.maxTank,
+    s.currentFuel,
+    Math.abs(s.needLiters - 2),
+    s.needLiters + 5
+  ], " Liter");
+  if (!step1Choices.some(c => Number(c.value) === Number(s.needLiters))) {
+    throw new Error("Step 1 choices dry-run did not contain correct answer!");
+  }
+
+  // Dry run step 2 choice generation
+  const step2Choices = generateUniqueChoices(s.totalCost, [
+    s.needLiters * (s.fuel.price - 1000),
+    s.vehicle.maxTank * s.fuel.price,
+    s.needLiters * s.fuel.price + 20000,
+    s.needLiters * s.fuel.price - 30000
+  ], "Rp", true);
+  if (!step2Choices.some(c => Number(c.value) === Number(s.totalCost))) {
+    throw new Error("Step 2 choices dry-run did not contain correct answer!");
+  }
+
+  // Dry run step 4 choice generation
+  const correct4 = s.isEnough ? s.change : s.shortage;
+  const list4 = s.isEnough ? [
+    s.bapakUang - s.totalCost + 10000,
+    s.bapakUang - s.totalCost - 10000,
+    s.change + 25000,
+    0
+  ] : [
+    s.totalCost - s.bapakUang + 10000,
+    s.totalCost - s.bapakUang - 5000,
+    s.shortage + 20000,
+    s.totalCost
+  ];
+  const step4Choices = generateUniqueChoices(correct4, list4, "Rp", true);
+  if (!step4Choices.some(c => Number(c.value) === Number(correct4))) {
+    throw new Error("Step 4 choices dry-run did not contain correct answer!");
+  }
+
+  console.log("Scenario validated successfully! All correct answers are verified as possible to answer.");
+  return true;
 }
 
 // 6. Generate Random Quiz Scenario
@@ -495,58 +599,90 @@ function generateNewScenario() {
   gameState.currentStep = 1;
   updateStepDots();
 
-  // Random Character
-  const character = characters[Math.floor(Math.random() * characters.length)];
-  
-  // Random Fuel
-  const fuel = fuels[Math.floor(Math.random() * fuels.length)];
-  
-  // Random Vehicle Type
-  const vType = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)];
-  
-  // Random current fuel level (neat round numbers: e.g. 5, 10, 15, 20 etc. always less than capacity)
-  let currentFuel = 0;
-  if (vType.maxTank <= 6) {
-    currentFuel = Math.floor(Math.random() * 3) + 1; // 1, 2, 3
-  } else if (vType.maxTank === 30) {
-    currentFuel = [5, 10, 15, 20][Math.floor(Math.random() * 4)];
-  } else if (vType.maxTank === 40) {
-    currentFuel = [10, 15, 20, 25][Math.floor(Math.random() * 4)];
-  } else if (vType.maxTank === 45) {
-    currentFuel = [10, 15, 20, 25, 30][Math.floor(Math.random() * 5)];
-  } else { // 60L
-    currentFuel = [10, 20, 30, 40][Math.floor(Math.random() * 4)];
+  let attempts = 0;
+  let character, fuel, vType, currentFuel, needLiters, totalCost, bapakUang, isEnough, change, shortage;
+  let success = false;
+
+  while (attempts < 15) {
+    // Random Character
+    character = characters[Math.floor(Math.random() * characters.length)];
+    
+    // Random Fuel
+    fuel = fuels[Math.floor(Math.random() * fuels.length)];
+    
+    // Random Vehicle Type
+    vType = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)];
+    
+    // Random current fuel level
+    currentFuel = 0;
+    if (vType.maxTank <= 6) {
+      currentFuel = Math.floor(Math.random() * 3) + 1; // 1, 2, 3
+    } else if (vType.maxTank === 30) {
+      currentFuel = [5, 10, 15, 20][Math.floor(Math.random() * 4)];
+    } else if (vType.maxTank === 40) {
+      currentFuel = [10, 15, 20, 25][Math.floor(Math.random() * 4)];
+    } else if (vType.maxTank === 45) {
+      currentFuel = [10, 15, 20, 25, 30][Math.floor(Math.random() * 5)];
+    } else { // 60L
+      currentFuel = [10, 20, 30, 40][Math.floor(Math.random() * 4)];
+    }
+
+    needLiters = vType.maxTank - currentFuel;
+    totalCost = needLiters * fuel.price;
+
+    // Decide a random cash payment from Bapak
+    bapakUang = 0;
+    const validCashOptions = cashOptions.filter(cash => cash >= (totalCost - 100000) && cash <= (totalCost + 150000));
+    if (validCashOptions.length > 0) {
+      bapakUang = validCashOptions[Math.floor(Math.random() * validCashOptions.length)];
+    } else {
+      bapakUang = cashOptions[Math.floor(Math.random() * cashOptions.length)];
+    }
+
+    isEnough = bapakUang >= totalCost;
+    change = isEnough ? (bapakUang - totalCost) : 0;
+    shortage = isEnough ? 0 : (totalCost - bapakUang);
+
+    const tempScenario = {
+      character,
+      fuel,
+      vehicle: vType,
+      currentFuel,
+      needLiters,
+      totalCost,
+      bapakUang,
+      isEnough,
+      change,
+      shortage
+    };
+
+    try {
+      validateScenario(tempScenario);
+      gameState.scenario = tempScenario;
+      success = true;
+      break;
+    } catch (e) {
+      console.warn(`Generated scenario failed validation (Attempt ${attempts + 1}):`, e.message);
+      attempts++;
+    }
   }
 
-  const needLiters = vType.maxTank - currentFuel;
-  const totalCost = needLiters * fuel.price;
-
-  // Decide a random cash payment from Bapak (sometimes enough, sometimes not!)
-  let bapakUang = 0;
-  // Make sure we select cash option that is realistic relative to the fuel cost
-  const validCashOptions = cashOptions.filter(cash => cash >= (totalCost - 100000) && cash <= (totalCost + 150000));
-  if (validCashOptions.length > 0) {
-    bapakUang = validCashOptions[Math.floor(Math.random() * validCashOptions.length)];
-  } else {
-    bapakUang = cashOptions[Math.floor(Math.random() * cashOptions.length)];
+  // Fallback if somehow all attempts fail
+  if (!success) {
+    console.error("All scenario validation attempts failed, using fallback.");
+    gameState.scenario = {
+      character,
+      fuel,
+      vehicle: vType,
+      currentFuel,
+      needLiters,
+      totalCost,
+      bapakUang,
+      isEnough,
+      change,
+      shortage
+    };
   }
-
-  const isEnough = bapakUang >= totalCost;
-  const change = isEnough ? (bapakUang - totalCost) : 0;
-  const shortage = isEnough ? 0 : (totalCost - bapakUang);
-
-  gameState.scenario = {
-    character,
-    fuel,
-    vehicle: vType,
-    currentFuel,
-    needLiters,
-    totalCost,
-    bapakUang,
-    isEnough,
-    change,
-    shortage
-  };
 
   // Dynamic Dispenser Color-Matching SPBU
   const quizPanel = document.getElementById("quiz-panel");
@@ -818,37 +954,64 @@ function handleAnswer(selectedValue) {
   let explanation = "";
   let title = "";
 
+  // Dynamic Type-safe Logging for debugging and verification
+  console.log("--- Answer Validation Debugger ---");
+  console.log("Current Step:", gameState.currentStep);
+  console.log("Selected Raw Value:", selectedValue, "Type:", typeof selectedValue);
+
   if (gameState.currentStep === 1) {
-    isCorrect = (Number(selectedValue) === Number(s.needLiters));
+    const val = parseFloat(selectedValue);
+    const correct = parseFloat(s.needLiters);
+    isCorrect = (val === correct);
+    console.log("Step 1 Math Check:", val, "===", correct, "->", isCorrect);
+    
     title = isCorrect ? t.greatJob : t.wrongAnswer;
     explanation = `${t.step1Desc}<br><br><b>${s.vehicle.maxTank}L</b> (Kapasitas) - <b>${s.currentFuel}L</b> (Isi Sekarang) = <b>${s.needLiters}L</b> bensin.`;
 
   } else if (gameState.currentStep === 2) {
-    isCorrect = (Number(selectedValue) === Number(s.totalCost));
+    const val = parseFloat(selectedValue);
+    const correct = parseFloat(s.totalCost);
+    isCorrect = (val === correct);
+    console.log("Step 2 Math Check:", val, "===", correct, "->", isCorrect);
+    
     title = isCorrect ? t.greatJob : t.wrongAnswer;
     explanation = `${t.step2Desc}<br><br><b>${s.needLiters}L</b> x <b>${t.rupiah} ${formatRupiah(s.fuel.price)}</b> = <b>${t.rupiah} ${formatRupiah(s.totalCost)}</b>.`;
 
   } else if (gameState.currentStep === 3) {
-    isCorrect = (String(selectedValue) === String(s.isEnough));
+    // Force both sides strictly to true/false boolean flags
+    const selectedBool = selectedValue === true || selectedValue === "true";
+    const correctBool = s.isEnough === true || s.isEnough === "true";
+    isCorrect = (selectedBool === correctBool);
+    console.log("Step 3 Boolean Check:", selectedBool, "===", correctBool, "->", isCorrect);
+    
     title = isCorrect ? t.greatJob : t.wrongAnswer;
     explanation = t.step3Desc
       .replace("{cash}", `${t.rupiah} ${formatRupiah(s.bapakUang)}`)
       .replace("{cost}", `${t.rupiah} ${formatRupiah(s.totalCost)}`);
     explanation += `<br><br>Sebab total biaya adalah <b>${t.rupiah} ${formatRupiah(s.totalCost)}</b> dan uang Bapak adalah <b>${t.rupiah} ${formatRupiah(s.bapakUang)}</b>`;
+    
     // If cash is not enough, calculate partial fill percentage
     if (!s.isEnough) {
       const partialLiters = s.currentFuel + (s.needLiters * (s.bapakUang / s.totalCost));
       const percent = Math.min((partialLiters / s.vehicle.maxTank) * 100, 99);
       gameState.partialFillPercent = percent;
       document.getElementById("tank-fill-bar").style.width = `${percent}%`;
+      // Dynamically update the current liters text
+      const display = document.getElementById("tank-current-display");
+      if (display) {
+        display.innerText = `${Math.round(partialLiters)} ${t.liter}`;
+      }
     }
   } else if (gameState.currentStep === 4) {
+    const val = parseFloat(selectedValue);
+    const correct = s.isEnough ? parseFloat(s.change) : parseFloat(s.shortage);
+    isCorrect = (val === correct);
+    console.log("Step 4 Math Check:", val, "===", correct, "->", isCorrect);
+    
     if (s.isEnough) {
-      isCorrect = (Number(selectedValue) === Number(s.change));
       title = isCorrect ? t.greatJob : t.wrongAnswer;
       explanation = `${t.step4EnoughDesc}<br><br><b>${t.rupiah} ${formatRupiah(s.bapakUang)}</b> (Uang Bapak) - <b>${t.rupiah} ${formatRupiah(s.totalCost)}</b> (Total Biaya) = <b>${t.rupiah} ${formatRupiah(s.change)}</b>.`;
     } else {
-      isCorrect = (Number(selectedValue) === Number(s.shortage));
       title = isCorrect ? t.greatJob : t.wrongAnswer;
       explanation = `${t.step4ShortDesc}<br><br><b>${t.rupiah} ${formatRupiah(s.totalCost)}</b> (Total Biaya) - <b>${t.rupiah} ${formatRupiah(s.bapakUang)}</b> (Uang Bapak) = <b>${t.rupiah} ${formatRupiah(s.shortage)}</b>.`;
     }
@@ -867,9 +1030,13 @@ function handleAnswer(selectedValue) {
       // Use a short timeout to allow the overlay to appear first
       setTimeout(() => {
         const bar = document.getElementById("tank-fill-bar");
+        const display = document.getElementById("tank-current-display");
         if (bar) {
           bar.style.transition = "width 0.8s ease-in-out";
           bar.style.width = "100%";
+        }
+        if (display) {
+          display.innerText = `${s.vehicle.maxTank} ${t.liter}`;
         }
       }, 300);
     }
@@ -953,7 +1120,7 @@ function triggerPumpAnimation() {
       
       // Update visual vehicle fill tank to 100% on the main frame
       document.getElementById("tank-fill-bar").style.width = "100%";
-      document.getElementById("tank-current-display").innerText = `${gameState.scenario.vehicle.maxTank}L`;
+      document.getElementById("tank-current-display").innerText = `${gameState.scenario.vehicle.maxTank} ${t.liter}`;
       
       // Dynamic dialog change
       document.getElementById("dialogue-text").innerText = `"${t.fullTankAlert}"`;
