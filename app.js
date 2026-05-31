@@ -36,7 +36,9 @@ const translations = {
     fullTankAlert: "Tangki sudah penuh! Horeee!",
     bapakDialogue: "Tolong diisi full tank {fuel} ya! Ini uang {cash}.",
     feedbackCorrect: "Bapak tersenyum senang: \"Hitunganmu pintar sekali nak, pas banget!\"",
-    feedbackIncorrect: "Bapak menggaruk kepala: \"Waduh nak, coba dihitung lagi deh pelan-pelan.\""
+    feedbackIncorrect: "Bapak menggaruk kepala: \"Waduh nak, coba dihitung lagi deh pelan-pelan.\"",
+    fullscreenEnter: "📺 Layar Penuh",
+    fullscreenExit: "🖥️ Mode Jendela"
   },
   en: {
     statusInit: "🔴 STARTING FROM ZERO, OK!",
@@ -68,7 +70,9 @@ const translations = {
     fullTankAlert: "The tank is fully filled! Hooray!",
     bapakDialogue: "Please fill it up with {fuel}! Here is {cash}.",
     feedbackCorrect: "Bapak smiles happily: \"Your calculation is superb and perfectly correct!\"",
-    feedbackIncorrect: "Bapak scratches his head: \"Oh dear, please calculate that again carefully.\""
+    feedbackIncorrect: "Bapak scratches his head: \"Oh dear, please calculate that again carefully.\"",
+    fullscreenEnter: "📺 Full Screen",
+    fullscreenExit: "🖥️ Window Mode"
   }
 };
 
@@ -386,6 +390,22 @@ document.addEventListener("DOMContentLoaded", () => {
     updateQuestCard();
   });
 
+  // Fullscreen button event listener
+  const fsBtn = document.getElementById("fullscreen-btn");
+  if (fsBtn) {
+    fsBtn.addEventListener("click", () => {
+      toggleFullscreen();
+    });
+  }
+
+  // Listen to standard fullscreen change event to update the button display automatically
+  document.addEventListener("fullscreenchange", () => {
+    updateFullscreenBtn();
+  });
+  document.addEventListener("webkitfullscreenchange", () => {
+    updateFullscreenBtn();
+  });
+
   // Mobile Menu toggle event listener
   const menuToggle = document.getElementById("menu-toggle-btn");
   const hudStats = document.getElementById("hud-stats");
@@ -408,6 +428,52 @@ function updateHUD() {
   updateLanguageUI();
 }
 
+function toggleFullscreen() {
+  const container = document.querySelector(".game-container");
+  if (!container) return;
+
+  const requestFS = container.requestFullscreen || container.webkitRequestFullscreen || container.msRequestFullscreen;
+
+  if (requestFS) {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      if (container.requestFullscreen) {
+        container.requestFullscreen();
+      } else if (container.webkitRequestFullscreen) {
+        container.webkitRequestFullscreen();
+      } else if (container.msRequestFullscreen) {
+        container.msRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+    }
+  } else {
+    // Fallback: Pseudo-fullscreen for older mobile Safari / iOS
+    container.classList.toggle("pseudo-fullscreen");
+    updateFullscreenBtn();
+  }
+}
+
+function updateFullscreenBtn() {
+  const fsBtn = document.getElementById("fullscreen-btn");
+  if (!fsBtn) return;
+  const t = translations[gameState.lang];
+  
+  const isNativeFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const isPseudoFS = document.querySelector(".game-container")?.classList.contains("pseudo-fullscreen");
+
+  if (isNativeFS || isPseudoFS) {
+    fsBtn.innerText = t.fullscreenExit;
+  } else {
+    fsBtn.innerText = t.fullscreenEnter;
+  }
+}
+
 function updateLanguageUI() {
   const t = translations[gameState.lang];
   document.getElementById("lang-btn").innerText = gameState.lang === "id" ? "🇲🇨 IND / 🇬🇧 ENG" : "🇬🇧 ENG / 🇲🇨 IND";
@@ -419,6 +485,8 @@ function updateLanguageUI() {
   document.querySelector(".game-footer p").innerHTML = gameState.lang === "id" ? 
     "Petualangan Pom Bensin &copy; 2026. Belajar Matematika Real-World Cepat &amp; Seru!" :
     "Petrol Station Adventure &copy; 2026. Fast &amp; Fun Real-World Math Learning!";
+  
+  updateFullscreenBtn();
 }
 
 // 6. Generate Random Quiz Scenario
